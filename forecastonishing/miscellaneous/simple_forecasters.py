@@ -1,6 +1,7 @@
 """
-This module provides `sklearn` API for simple forecasters such as
-moving average, moving median, and exponential moving average.
+This module provides API similar to that of `sklearn` for simple
+forecasters such as moving average, moving median, and
+exponential moving average.
 
 @author: Nikolay Lysenko
 """
@@ -20,22 +21,21 @@ class BaseSimpleForecaster(BaseEstimator, RegressorMixin):
         function that makes forecast for the next step
     """
 
-    def __init__(self, forecasting_fn: Callable):
+    def __init__(
+            self,
+            forecasting_fn: Callable
+            ):
         self.forecasting_fn = forecasting_fn
 
     def fit(
             self,
-            X: Optional[pd.DataFrame] = None,
-            y: Optional[pd.Series] = None
+            ser: Optional[pd.Series] = None
             ) -> 'BaseSimpleForecaster':
         """
-        An empty method added only for the sake of compatibility
-        with `sklearn` API. Simple forecasters have no fitting.
+        An empty method added only for the sake of similarity to
+        `sklearn` API. Simple forecasters have no fitting.
 
-        :param X:
-            supplementary features, you can leave this argument
-            untouched
-        :param y:
+        :param ser:
             target time series, you can leave this argument
             untouched
         :return:
@@ -45,26 +45,23 @@ class BaseSimpleForecaster(BaseEstimator, RegressorMixin):
 
     def predict(
             self,
-            X: Optional[pd.DataFrame],
-            y: pd.Series,
+            ser: pd.Series,
             horizon: int = 1
             ) -> pd.Series:
         """
         Predict time series several steps ahead.
 
-        :param X:
-            supplementary features, you can pass `None`
-        :param y:
+        :param ser:
             target time series
         :param horizon:
             number of steps ahead
         :return:
             predictions for future steps
         """
-        ser = y.copy()
+        new_ser = ser.copy()
         for i in range(horizon):
-            ser.append(pd.Series(self.forecasting_fn(ser).iloc[-1]))
-        return ser.iloc[-horizon:]
+            new_ser.append(pd.Series(self.forecasting_fn(new_ser).iloc[-1]))
+        return new_ser.iloc[-horizon:]
 
 
 class MovingAverageForecaster(BaseSimpleForecaster):
