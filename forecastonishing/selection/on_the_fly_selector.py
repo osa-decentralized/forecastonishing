@@ -15,6 +15,7 @@ the reason why adaptive selection is useful for many series.
 from typing import List, Dict, Callable, Any, Optional
 
 from joblib import Parallel, delayed
+from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
@@ -55,8 +56,8 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
       consideration their identities;
     * Uses no external features and so can be used for modelling of
       residuals of a more complicated model;
-    * Can be easily paralleled and distributed, can deal with
-      thousands of time series in one call.
+    * Can be easily paralleled, can deal with thousands of time series
+      in one call.
 
     Limitations of adaptive on-the-fly selection are as follows:
     * Not suitable for time series that are strongly influenced by
@@ -85,6 +86,9 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         from each series.
     :param n_jobs:
         number of jobs for internal paralleling, default is 1
+    :param verbose:
+        if it is greater than zero, a progress bar with tried
+        candidates is shown
     """
 
     def __init__(
@@ -93,13 +97,15 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
             evaluation_fn: Optional[Callable] = None,
             horizon: Optional[int] = 1,
             n_evaluational_steps: Optional[int] = 1,
-            n_jobs: Optional[int] = 1
+            n_jobs: Optional[int] = 1,
+            verbose: Optional[int] = 0
             ):
         self.candidates = candidates
         self.evaluation_fn = evaluation_fn
         self.horizon = horizon
         self.n_evaluational_steps = n_evaluational_steps
         self.n_jobs = n_jobs
+        self.verbose = verbose
         # Trailing underscore means that attribute is due to fitting.
         self.name_of_target_ = None
         self.series_keys_ = None
@@ -195,6 +201,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
 
         self.__create_table_for_results(df)
         candidates = self.__get_candidates()
+        candidates = tqdm(candidates) if self.verbose > 0 else candidates
         for candidate in candidates:
             pass  # TODO: Use `joblib.Parallel` with `df.groupby`.
 

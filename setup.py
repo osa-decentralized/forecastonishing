@@ -25,5 +25,5 @@ setup(
     license='MIT',
     keywords='machine_learning forecasting adaptive_models',
     packages=find_packages(exclude=['docs', 'tests']),
-    install_requires=['numpy', 'pandas', 'scikit-learn', 'joblib']
+    install_requires=['numpy', 'pandas', 'scikit-learn', 'joblib', 'tqdm']
 )
