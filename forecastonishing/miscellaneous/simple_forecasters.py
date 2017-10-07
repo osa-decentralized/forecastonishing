@@ -1,7 +1,7 @@
 """
-This module provides API similar to that of `sklearn` for simple
-forecasters such as moving average, moving median, and
-exponential moving average.
+This module endows simple forecasters such as moving average,
+moving median, and exponential moving average with API that is quite
+similar to that of `sklearn`.
 
 @author: Nikolay Lysenko
 """
@@ -73,10 +73,15 @@ class MovingAverageForecaster(BaseSimpleForecaster):
     """
 
     def __init__(self, rolling_kwargs: Optional[Dict] = None):
-        self.rolling_kwargs = (
-            rolling_kwargs if rolling_kwargs is not None else dict()
+        self.rolling_kwargs = rolling_kwargs or dict()
+        if self.rolling_kwargs.get('window', None) is None:
+            self.rolling_kwargs['window'] = 3
+        super().__init__(
+            lambda x: x
+            .tail(self.rolling_kwargs['window'])
+            .rolling(**self.rolling_kwargs)
+            .mean()
         )
-        super().__init__(lambda x: x.rolling(**self.rolling_kwargs).mean())
 
 
 class MovingMedianForecaster(BaseSimpleForecaster):
@@ -88,10 +93,15 @@ class MovingMedianForecaster(BaseSimpleForecaster):
     """
 
     def __init__(self, rolling_kwargs: Optional[Dict] = None):
-        self.rolling_kwargs = (
-            rolling_kwargs if rolling_kwargs is not None else dict()
+        self.rolling_kwargs = rolling_kwargs or dict()
+        if self.rolling_kwargs.get('window', None) is None:
+            self.rolling_kwargs['window'] = 3
+        super().__init__(
+            lambda x: x
+            .tail(self.rolling_kwargs['window'])
+            .rolling(**self.rolling_kwargs)
+            .median()
         )
-        super().__init__(lambda x: x.rolling(**self.rolling_kwargs).median())
 
 
 class ExponentialMovingAverageForecaster(BaseSimpleForecaster):
@@ -99,11 +109,26 @@ class ExponentialMovingAverageForecaster(BaseSimpleForecaster):
     Maker of forecasts with exponential moving average.
 
     :param ewm_kwargs:
-        parameters of exponential window
+        parameters of exponential window and one additional
+        parameter with key 'n_steps_to_use' that specifies
+        the length of current tail of a series to be used
+        for predicting, its default value is length of a
+        series
     """
 
     def __init__(self, ewm_kwargs: Optional[Dict] = None):
-        self.ewm_kwargs = (
-            ewm_kwargs if ewm_kwargs is not None else dict()
+        self.ewm_kwargs = ewm_kwargs or dict()
+        if self.ewm_kwargs.get('n_steps_to_use', None) is None:
+            self.ewm_kwargs['n_steps_to_use'] = len
+        else:
+            self.ewm_kwargs['n_steps_to_use'] = (
+                lambda _: self.ewm_kwargs['n_steps_to_use']
+            )
+        super().__init__(
+            lambda x: x
+            .tail(self.ewm_kwargs['n_steps_to_use'](x))
+            .ewm(**{k: v
+                    for k, v in self.ewm_kwargs.items()
+                    if k != 'n_steps_to_use'})
+            .mean()
         )
-        super().__init__(lambda x: x.ewm(**self.ewm_kwargs).mean())
