@@ -13,6 +13,7 @@ the reason why adaptive selection is useful for many series.
 
 
 from typing import List, Dict, Callable, Any, Optional
+from functools import partial
 
 from joblib import Parallel, delayed
 from tqdm import tqdm
@@ -166,6 +167,18 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
                       else x['forecaster'],
             axis=1)
 
+    def __add_partition_key(self, df: pd.DataFrame) -> pd.DataFrame:
+        # Balance load between different jobs uniformly.
+        keys_df = df[self.series_keys_].drop_duplicates()
+        keys_df = keys_df \
+            .reset_index() \
+            .rename(columns={'index': 'partition_key'})
+        keys_df['partition_key'] = keys_df['partition_key'].apply(
+            lambda x: x % self.n_jobs
+        )
+        df = df.merge(keys_df, on=self.series_keys_)
+        return df
+
     def _evaluate_forecaster_on_one_series(
             self,
             ser: pd.Series,
@@ -186,10 +199,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         score = self.evaluation_fn(actual_values, predictions)
         return score
 
-    def _fit(
-            self,
-            df: pd.DataFrame
-            ) -> 'OnTheFlySelector':
+    def _fit(self, df: pd.DataFrame) -> 'OnTheFlySelector':
         # Implement internal logic of fitting.
 
         extra_keys = list(set(self.scoring_keys_) - set(self.series_keys_))
@@ -198,12 +208,68 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
                 '`scoring_keys` contains a key not from `series_keys`'
             )
         detailed_keys = list(set(self.series_keys_) - set(self.scoring_keys_))
+        # Rearrange `series_keys` in order to have `scoring_keys` first.
+        series_keys = self.scoring_keys_ + detailed_keys
 
         self.__create_table_for_results(df)
+        df = self.__add_partition_key(df)
+
         candidates = self.__get_candidates()
         candidates = tqdm(candidates) if self.verbose > 0 else candidates
         for candidate in candidates:
-            pass  # TODO: Use `joblib.Parallel` with `df.groupby`.
+            evaluate_on_one_series = partial(
+                self._evaluate_forecaster_on_one_series,
+                forecaster=candidate
+            )
+            scores_list = Parallel(n_jobs=self.n_jobs)(
+                delayed(
+                    lambda x: x[series_keys + self.name_of_target_]
+                    .groupby(series_keys)
+                    .apply(
+                        evaluate_on_one_series()
+                    )
+                )
+                (group)
+                for _, group in df.groupby('partition_key', as_index=False)
+            )
+            scores = pd.concat(scores_list)  # TODO: Ignore index?
+            # Average scores, if forecasters are selected for sets of series.
+            if detailed_keys:
+                scores = scores.groupby(
+                    level=range(len(self.scoring_keys_))
+                ).mean()
+            self.__update_table_with_results(candidate, scores)
 
+        df.drop('partition_key', axis=1, inplace=True)
         return self
 
+    def fit(
+            self,
+            df: pd.DataFrame,
+            name_of_target: str,
+            series_keys: List[str],
+            scoring_keys: Optional[List[str]] = None
+            ) -> 'OnTheFlySelector':
+        """
+        Figure out which forecaster should be used for each series.
+
+        :param df:
+            DataFrame in a long format with (many) time series
+        :param name_of_target:
+            name of target column
+        :param series_keys:
+            columns that are identifiers of unique time series
+        :param scoring_keys:
+            identifiers of groups such that best forecasters are
+            selected per a group, not per an individual time series,
+            this can be used if you want to reduce overfitting and you
+            know which series exhibit similar behavior,
+            default value is no grouping
+        :return:
+            fitted instance
+        """
+        self.name_of_target_ = name_of_target
+        self.series_keys_ = series_keys
+        self.scoring_keys_ = scoring_keys or series_keys
+        self._fit(df)
+        return self
