@@ -32,7 +32,10 @@ class TestMovingAverageForecaster(unittest.TestCase):
         """
         maf = MovingAverageForecaster()
         maf.fit(None)
+        self.assertTrue(hasattr(maf, 'is_fitted_'))
+        maf = MovingAverageForecaster()
         maf.fit(pd.Series([0, 1]))
+        self.assertTrue(hasattr(maf, 'is_fitted_'))
 
     def test_predict(self) -> type(None):
         """
@@ -43,9 +46,10 @@ class TestMovingAverageForecaster(unittest.TestCase):
         """
         ser = pd.Series([1, 2, 6], dtype=np.float32)
         maf = MovingAverageForecaster({'window': 3})
-        result = maf.predict(ser).values
+        maf.fit(ser)
+        result = maf.predict(ser)
         true_answer = np.array([3], dtype=np.float32)
-        np.array_equal(result, true_answer)
+        self.assertTrue(np.array_equal(result, true_answer))
 
     def test_predict_with_horizon(self) -> type(None):
         """
@@ -56,9 +60,10 @@ class TestMovingAverageForecaster(unittest.TestCase):
         """
         ser = pd.Series([1, 2, 6], dtype=np.float32)
         maf = MovingAverageForecaster({'window': 3})
-        result = maf.predict(ser, horizon=3).values
+        maf.fit(ser)
+        result = maf.predict(ser, horizon=3)
         true_answer = np.array([3, 11 / 3, 38 / 9], dtype=np.float32)
-        np.array_equal(result, true_answer)
+        self.assertTrue(np.allclose(result, true_answer))
 
 
 class TestMovingMedianForecaster(unittest.TestCase):
@@ -75,7 +80,10 @@ class TestMovingMedianForecaster(unittest.TestCase):
         """
         mmf = MovingMedianForecaster()
         mmf.fit(None)
+        self.assertTrue(hasattr(mmf, 'is_fitted_'))
+        mmf = MovingMedianForecaster()
         mmf.fit(pd.Series([0, 1]))
+        self.assertTrue(hasattr(mmf, 'is_fitted_'))
 
     def test_predict(self) -> type(None):
         """
@@ -86,9 +94,10 @@ class TestMovingMedianForecaster(unittest.TestCase):
         """
         ser = pd.Series([1, 2, 6], dtype=np.float32)
         mmf = MovingMedianForecaster({'window': 3})
-        result = mmf.predict(ser).values
+        mmf.fit(ser)
+        result = mmf.predict(ser)
         true_answer = np.array([2], dtype=np.float32)
-        np.array_equal(result, true_answer)
+        self.assertTrue(np.array_equal(result, true_answer))
 
     def test_predict_with_horizon(self) -> type(None):
         """
@@ -99,9 +108,10 @@ class TestMovingMedianForecaster(unittest.TestCase):
         """
         ser = pd.Series([1, 2, 6, 4], dtype=np.float32)
         mmf = MovingMedianForecaster({'window': 4})
-        result = mmf.predict(ser, horizon=3).values
+        mmf.fit(ser)
+        result = mmf.predict(ser, horizon=3)
         true_answer = np.array([3, 3.5, 3.75], dtype=np.float32)
-        np.array_equal(result, true_answer)
+        self.assertTrue(np.array_equal(result, true_answer))
 
 
 class TestExponentialMovingAverageForecaster(unittest.TestCase):
@@ -117,8 +127,8 @@ class TestExponentialMovingAverageForecaster(unittest.TestCase):
             None
         """
         eaf = ExponentialMovingAverageForecaster()
-        eaf.fit(None)
         eaf.fit(pd.Series([0, 1]))
+        self.assertTrue(hasattr(eaf, 'is_fitted_'))
 
     def test_predict(self) -> type(None):
         """
@@ -129,9 +139,10 @@ class TestExponentialMovingAverageForecaster(unittest.TestCase):
         """
         ser = pd.Series([1, 2, 6], dtype=np.float32)
         eaf = ExponentialMovingAverageForecaster({'alpha': 0.5})
-        result = eaf.predict(ser).values
+        eaf.fit(ser)
+        result = eaf.predict(ser)
         true_answer = np.array([4.142857142857142], dtype=np.float32)
-        np.allclose(result, true_answer)
+        self.assertTrue(np.allclose(result, true_answer))
 
     def test_predict_with_horizon(self) -> type(None):
         """
@@ -142,11 +153,12 @@ class TestExponentialMovingAverageForecaster(unittest.TestCase):
         """
         ser = pd.Series([1, 2, 6], dtype=np.float32)
         eaf = ExponentialMovingAverageForecaster({'alpha': 0.5})
-        result = eaf.predict(ser, horizon=3).values
+        eaf.fit(ser)
+        result = eaf.predict(ser, horizon=3)
         true_answer = np.array([4.142857142857142,
                                 4.36734693877551,
                                 4.536443148688046], dtype=np.float32)
-        np.allclose(result, true_answer)
+        self.assertTrue(np.allclose(result, true_answer))
 
 
 def main():
