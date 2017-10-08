@@ -21,13 +21,36 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 
-from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.base import BaseEstimator, RegressorMixin, clone
+from sklearn.metrics import mean_squared_error
 
 from forecastonishing.miscellaneous.simple_forecasters import (
     MovingAverageForecaster,
     MovingMedianForecaster,
     ExponentialMovingAverageForecaster
 )
+
+
+def evaluate_forecaster(
+        selector: 'OnTheFlySelector',
+        df: pd.DataFrame,
+        forecaster: Any
+    ) -> pd.Series:
+    """
+    An auxiliary function that is created only because of Python
+    inability to pickle class methods (pickling is needed by
+    `joblib`).
+
+    :param selector:
+        you should not call this function
+    :param df:
+        you should not call this function
+    :param forecaster:
+        you should not call this function
+    :return:
+        series with scores
+    """
+    return selector.evaluate_forecaster_on_one_partition(df, forecaster)
 
 
 class OnTheFlySelector(BaseEstimator, RegressorMixin):
@@ -75,7 +98,8 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         moving averages of ten distinct half-lifes
     :param evaluation_fn:
         function that is used for selection of the best forecasters,
-        the bigger its value, the better is a forecaster
+        the bigger its value, the better is a forecaster, default is
+        negative mean squared error
     :param horizon:
         number of steps ahead to be forecasted at each iteration,
         default is 1
@@ -88,8 +112,8 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
     :param n_jobs:
         number of jobs for internal paralleling, default is 1
     :param verbose:
-        if it is greater than zero, a progress bar with tried
-        candidates is shown
+        if it is greater than 0, a progress bar with tried candidates
+        is shown, default is 0
     """
 
     def __init__(
@@ -107,27 +131,28 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         self.n_evaluational_steps = n_evaluational_steps
         self.n_jobs = n_jobs
         self.verbose = verbose
-        # Trailing underscore means that attribute is due to fitting.
-        self.name_of_target_ = None
-        self.series_keys_ = None
-        self.scoring_keys_ = None
-        self.best_scores_ = None
 
     def __get_candidates(self) -> List[Any]:
-        # Get list of instances that are ready for predicting with them.
+        # Get list of instances that are ready to fitting.
         if self.candidates is None:
             raw_description = {
                 MovingAverageForecaster():
-                    [{'window': w, 'min_periods': 1} for w in range(1, 11)],
+                    [{'rolling_kwargs': {'window': w, 'min_periods': 1}}
+                     for w in range(1, 11)],
                 MovingMedianForecaster():
-                    [{'window': w, 'min_periods': 1} for w in range(3, 11)],
+                    [{'rolling_kwargs': {'window': w, 'min_periods': 1}}
+                     for w in range(3, 11)],
                 ExponentialMovingAverageForecaster():
-                    [{'halflife': h, 'min_periods': 1}
+                    [{'ewm_kwargs': {
+                        'halflife': h,
+                        'min_periods': 1,
+                        'n_steps_to_use': 10
+                     }}
                      for h in np.arange(1, 6, 0.5)]
             }
         else:
             raw_description = self.candidates
-        nested = [[forecaster.set_params(**kwargs)
+        nested = [[clone(forecaster).set_params(**kwargs)
                    for forecaster, list_of_kwargs in raw_description.items()
                    for kwargs in list_of_kwargs]]
         forecasters = [item for sublist in nested for item in sublist]
@@ -153,7 +178,6 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
 
         scores = candidate_scores.to_frame(name='curr_score')
         scores['curr_forecaster'] = tried_candidate
-        # TODO: Do we need enumeration that prevents weird issues?
 
         self.best_scores_ = self.best_scores_.merge(
             scores, how='left', left_index=True, right_index=True
@@ -166,6 +190,8 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
                       if x['curr_score'] >= x['score']
                       else x['forecaster'],
             axis=1)
+        self.best_scores_.drop('curr_score', axis=1, inplace=True)
+        self.best_scores_.drop('curr_forecaster', axis=1, inplace=True)
 
     def __add_partition_key(self, df: pd.DataFrame) -> pd.DataFrame:
         # Balance load between different jobs uniformly.
@@ -186,18 +212,37 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
             ) -> float:
         # Evaluate performance of `forecaster` on `ser`.
         frontier = len(ser) - self.horizon - self.n_evaluational_steps + 1
-        actual_values = pd.Series()
-        predictions = pd.Series()
+        actual_values = np.array([])
+        predictions = np.array([])
         for i in range(self.n_evaluational_steps):
             curr_actual = ser[(frontier + i):(frontier + i + self.horizon)]
-            actual_values = actual_values.append(curr_actual)
+            actual_values = np.append(actual_values, curr_actual.values)
             curr_predictions = forecaster.predict(
                 ser[:frontier + i],
                 self.horizon
             )
-            predictions = predictions.append(curr_predictions)
-        score = self.evaluation_fn(actual_values, predictions)
+            predictions = np.append(predictions, curr_predictions)
+        score = self.evaluation_fn_(actual_values, predictions)
         return score
+
+    def evaluate_forecaster_on_one_partition(
+            self,
+            df: pd.DataFrame,
+            forecaster: Any
+            ) -> pd.Series:
+        # Evaluate performance of `forecaster` on `df`.
+        evaluate_on_one_series = partial(
+            self._evaluate_forecaster_on_one_series,
+            forecaster=forecaster
+        )
+        result = (
+            df[self.series_keys_ + [self.name_of_target_]]
+            .groupby(self.series_keys_)[self.name_of_target_]
+            .apply(
+               evaluate_on_one_series
+            )
+        )
+        return result
 
     def _fit(self, df: pd.DataFrame) -> 'OnTheFlySelector':
         # Implement internal logic of fitting.
@@ -209,7 +254,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
             )
         detailed_keys = list(set(self.series_keys_) - set(self.scoring_keys_))
         # Rearrange `series_keys` in order to have `scoring_keys` first.
-        series_keys = self.scoring_keys_ + detailed_keys
+        self.series_keys_ = self.scoring_keys_ + detailed_keys
 
         self.__create_table_for_results(df)
         df = self.__add_partition_key(df)
@@ -217,23 +262,14 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         candidates = self.__get_candidates()
         candidates = tqdm(candidates) if self.verbose > 0 else candidates
         for candidate in candidates:
-            evaluate_on_one_series = partial(
-                self._evaluate_forecaster_on_one_series,
-                forecaster=candidate
-            )
+            candidate.fit(None)  # TODO: Fit it to a random series from `df`.
             scores_list = Parallel(n_jobs=self.n_jobs)(
-                delayed(
-                    lambda x: x[series_keys + self.name_of_target_]
-                    .groupby(series_keys)
-                    .apply(
-                        evaluate_on_one_series()
-                    )
-                )
-                (group)
+                delayed(evaluate_forecaster)
+                (self, group, candidate)
                 for _, group in df.groupby('partition_key', as_index=False)
             )
             scores = pd.concat(scores_list)  # TODO: Ignore index?
-            # Average scores, if forecasters are selected for sets of series.
+            # Average scores if forecasters are selected for sets of series.
             if detailed_keys:
                 scores = scores.groupby(
                     level=range(len(self.scoring_keys_))
@@ -268,6 +304,13 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         :return:
             fitted instance
         """
+        # Trailing underscore means that this attribute is due to fitting.
+        # Here, `sklearn` style contradicts to hints of some linters.
+        self.evaluation_fn_ = (
+            self.evaluation_fn
+            if self.evaluation_fn is not None
+            else lambda x, y: -mean_squared_error(x, y)
+        )
         self.name_of_target_ = name_of_target
         self.series_keys_ = series_keys
         self.scoring_keys_ = scoring_keys or series_keys
