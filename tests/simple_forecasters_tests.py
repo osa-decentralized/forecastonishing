@@ -144,6 +144,23 @@ class TestExponentialMovingAverageForecaster(unittest.TestCase):
         true_answer = np.array([4.142857142857142], dtype=np.float32)
         self.assertTrue(np.allclose(result, true_answer))
 
+    def test_predict_with_n_steps_to_use(self) -> type(None):
+        """
+        Test `predict` method with number of previous steps to be used
+        defined initially.
+
+        :return:
+            None
+        """
+        ser = pd.Series([1, 2, 6], dtype=np.float32)
+        eaf = ExponentialMovingAverageForecaster(
+            {'alpha': 0.5, 'n_steps_to_use': 2}
+        )
+        eaf.fit(ser)
+        result = eaf.predict(ser)
+        true_answer = np.array([3.5 * 4 / 3], dtype=np.float32)
+        self.assertTrue(np.allclose(result, true_answer))
+
     def test_predict_with_horizon(self) -> type(None):
         """
         Test `predict` method with forecasting multiple steps ahead.
