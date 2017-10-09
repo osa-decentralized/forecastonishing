@@ -184,7 +184,112 @@ class TestOnTheFlySelector(unittest.TestCase):
         )
         self.assertAlmostEqual(selector.best_scores_['score'][2], -0.7225)
 
-    # TODO: Test `fit` with `horizon` and with `n_evaluational_steps`.
+    def test_fit_with_evaluational_interval(self) -> type(None):
+        """
+        Test `fit` method with selection based on results for
+        several steps.
+
+        :return:
+            None
+        """
+        candidates = {
+            MovingAverageForecaster():
+                [{'rolling_kwargs': {'window': w, 'min_periods': 1}}
+                 for w in range(1, 3)],
+            MovingMedianForecaster():
+                [{'rolling_kwargs': {'window': w, 'min_periods': 1}}
+                 for w in range(3, 4)]
+        }
+        selector = OnTheFlySelector(candidates, n_evaluational_steps=3)
+
+        df = pd.DataFrame(
+            [[1, 2],
+             [1, 3],
+             [1, 6],
+             [1, 5],
+             [1, 4],
+             [1, 3],
+             [2, 3],
+             [2, 4],
+             [2, 4.5],
+             [2, 1],
+             [2, 7],
+             [2, 2]],
+            columns=['key', 'target']
+        )
+
+        selector.fit(df, 'target', ['key'])
+
+        self.assertTrue(isinstance(
+            selector.best_scores_['forecaster'][1], MovingAverageForecaster
+        ))
+        self.assertEquals(
+            selector.best_scores_['forecaster'][1].get_params(),
+            {'rolling_kwargs': {'window': 1, 'min_periods': 1}}
+        )
+        self.assertEqual(selector.best_scores_['score'][1], -1)
+        self.assertTrue(isinstance(
+            selector.best_scores_['forecaster'][2], MovingMedianForecaster
+        ))
+        self.assertEquals(
+            selector.best_scores_['forecaster'][2].get_params(),
+            {'rolling_kwargs': {'window': 3, 'min_periods': 1}}
+        )
+        self.assertAlmostEqual(selector.best_scores_['score'][2], -8.083333333)
+
+    def test_fit_with_horizon(self) -> type(None):
+        """
+        Test `fit` method with horizon.
+
+        :return:
+            None
+        """
+        candidates = {
+            MovingAverageForecaster():
+                [{'rolling_kwargs': {'window': w, 'min_periods': 1}}
+                 for w in range(1, 3)],
+            MovingMedianForecaster():
+                [{'rolling_kwargs': {'window': w, 'min_periods': 1}}
+                 for w in range(3, 4)]
+        }
+        selector = OnTheFlySelector(candidates, horizon=3)
+
+        df = pd.DataFrame(
+            [[1, 2],
+             [1, 3],
+             [1, 6],
+             [1, 5],
+             [1, 4],
+             [1, 1],
+             [2, 3],
+             [2, 4],
+             [2, 4.5],
+             [2, 1],
+             [2, 9],
+             [2, 0]],
+            columns=['key', 'target']
+        )
+
+        selector.fit(df, 'target', ['key'])
+
+        self.assertTrue(isinstance(
+            selector.best_scores_['forecaster'][1], MovingMedianForecaster
+        ))
+        self.assertEquals(
+            selector.best_scores_['forecaster'][1].get_params(),
+            {'rolling_kwargs': {'window': 3, 'min_periods': 1}}
+        )
+        self.assertEquals(selector.best_scores_['score'][1], -3)
+        self.assertTrue(isinstance(
+            selector.best_scores_['forecaster'][2], MovingMedianForecaster
+        ))
+        self.assertEquals(
+            selector.best_scores_['forecaster'][2].get_params(),
+            {'rolling_kwargs': {'window': 3, 'min_periods': 1}}
+        )
+        self.assertEquals(selector.best_scores_['score'][2], -50 / 3)
+
+    # TODO: Test `fit` with both `horizon` and `n_evaluational_steps`.
 
 
 def main():
