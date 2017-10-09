@@ -247,7 +247,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         Figure out which forecaster should be used for each series.
 
         :param df:
-            DataFrame in a long format with (many) time series
+            DataFrame in long format with (many) time series
         :param name_of_target:
             name of target column
         :param series_keys:
@@ -275,29 +275,32 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         self._fit(df)
         return self
 
-    def add_partition_key(
-            self,
-            df: pd.DataFrame,
-            n_jobs: int
-            ) -> pd.DataFrame:
-        """
-        Add to a `df` new column that helps to balance load between
-        different processes uniformly.
 
-        :param df:
-            data to be transformed
-        :param n_jobs:
-            number of processes that will be used for parallel
-            execution
-        :return:
-            DataFrame with a new column named 'partition_key'
-        """
-        keys_df = df[self.series_keys_].drop_duplicates()
-        keys_df = keys_df \
-            .reset_index() \
-            .rename(columns={'index': 'partition_key'})
-        keys_df['partition_key'] = keys_df['partition_key'].apply(
-            lambda x: x % n_jobs
-        )
-        df = df.merge(keys_df, on=self.series_keys_)
-        return df
+def add_partition_key(
+        df: pd.DataFrame,
+        series_keys: List[str],
+        n_jobs: int
+        ) -> pd.DataFrame:
+    """
+    Add to `df` a new column that helps to balance load between
+    different processes uniformly.
+
+    :param df:
+        data to be transformed in long format
+    :param series_keys:
+        columns that are identifiers of unique time series
+    :param n_jobs:
+        number of processes that will be used for parallel
+        execution
+    :return:
+        DataFrame with a new column named 'partition_key'
+    """
+    keys_df = df[series_keys].drop_duplicates()
+    keys_df = keys_df \
+        .reset_index() \
+        .rename(columns={'index': 'partition_key'})
+    keys_df['partition_key'] = keys_df['partition_key'].apply(
+        lambda x: x % n_jobs
+    )
+    df = df.merge(keys_df, on=series_keys)
+    return df
