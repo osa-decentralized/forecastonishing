@@ -31,26 +31,41 @@ from forecastonishing.miscellaneous.simple_forecasters import (
 )
 
 
-def evaluate_forecaster(
+def evaluate_forecaster_on_one_partition(
         selector: 'OnTheFlySelector',
         df: pd.DataFrame,
         forecaster: Any
-    ) -> pd.Series:
+        ) -> pd.Series:
     """
-    An auxiliary function that is created only because of Python
+    An auxiliary function that is created only because of Python's
     inability to pickle class methods (pickling is needed by
-    `joblib`).
+    `joblib`). Normally, you should not import this function.
+
+    The function evaluates `forecaster` on a portion of time series
+    represented as a long-format DataFrame `df` and this evaluation
+    is run according to policies of `selector`.
 
     :param selector:
-        you should not call this function
+        you should not pass this argument
     :param df:
-        you should not call this function
+        you should not pass this argument
     :param forecaster:
-        you should not call this function
+        you should not pass this argument
     :return:
         series with scores
     """
-    return selector.evaluate_forecaster_on_one_partition(df, forecaster)
+    evaluate_on_one_series = partial(
+        selector._evaluate_forecaster_on_one_series,
+        forecaster=forecaster
+    )
+    result = (
+        df[selector.series_keys_ + [selector.name_of_target_]]
+        .groupby(selector.series_keys_)[selector.name_of_target_]
+        .apply(
+            evaluate_on_one_series
+        )
+    )
+    return result
 
 
 class OnTheFlySelector(BaseEstimator, RegressorMixin):
@@ -225,7 +240,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         score = self.evaluation_fn_(actual_values, predictions)
         return score
 
-    def evaluate_forecaster_on_one_partition(
+    def _evaluate_forecaster_on_one_partition(
             self,
             df: pd.DataFrame,
             forecaster: Any
@@ -264,7 +279,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         for candidate in candidates:
             candidate.fit(None)  # TODO: Fit it to a random series from `df`.
             scores_list = Parallel(n_jobs=self.n_jobs)(
-                delayed(evaluate_forecaster)
+                delayed(evaluate_forecaster_on_one_partition)
                 (self, group, candidate)
                 for _, group in df.groupby('partition_key', as_index=False)
             )
