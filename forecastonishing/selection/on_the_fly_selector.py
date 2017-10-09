@@ -144,10 +144,10 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
                      for w in range(3, 11)],
                 ExponentialMovingAverageForecaster():
                     [{'ewm_kwargs': {
-                        'halflife': h,
-                        'min_periods': 1,
-                        'n_steps_to_use': 10
-                     }}
+                          'halflife': h,
+                          'min_periods': 1,
+                     },
+                     'n_steps_to_use': 10}
                      for h in np.arange(1, 6, 0.5)]
             }
         else:
@@ -268,7 +268,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
                 (self, group, candidate)
                 for _, group in df.groupby('partition_key', as_index=False)
             )
-            scores = pd.concat(scores_list)  # TODO: Ignore index?
+            scores = pd.concat(scores_list)
             # Average scores if forecasters are selected for sets of series.
             if detailed_keys:
                 scores = scores.groupby(
