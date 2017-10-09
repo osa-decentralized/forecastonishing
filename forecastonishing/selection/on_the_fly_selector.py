@@ -1,6 +1,7 @@
 """
 Inside this module, there is a class that runs adaptive selection
-of short-term forecasting models.
+of short-term forecasting models. Some functions that helps to
+run adaptive selection in parallel can be found here as well.
 
 Time series forecasting has a property that all observations are
 ordered. Depending on position, behavior of series can vary and so
@@ -15,7 +16,7 @@ the reason why adaptive selection is useful for many series.
 from typing import List, Dict, Callable, Any, Optional
 from functools import partial
 
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed  # TODO: Use it in paralleling functions.
 from tqdm import tqdm
 
 import numpy as np
@@ -31,43 +32,6 @@ from forecastonishing.miscellaneous.simple_forecasters import (
 )
 
 
-def evaluate_forecaster_on_one_partition(
-        selector: 'OnTheFlySelector',
-        df: pd.DataFrame,
-        forecaster: Any
-        ) -> pd.Series:
-    """
-    An auxiliary function that is created only because of Python's
-    inability to pickle class methods (pickling is needed by
-    `joblib`). Normally, you should not import this function.
-
-    The function evaluates `forecaster` on a portion of time series
-    represented as a long-format DataFrame `df` and this evaluation
-    is run according to policies of `selector`.
-
-    :param selector:
-        you should not pass this argument
-    :param df:
-        you should not pass this argument
-    :param forecaster:
-        you should not pass this argument
-    :return:
-        series with scores
-    """
-    evaluate_on_one_series = partial(
-        selector._evaluate_forecaster_on_one_series,
-        forecaster=forecaster
-    )
-    result = (
-        df[selector.series_keys_ + [selector.name_of_target_]]
-        .groupby(selector.series_keys_)[selector.name_of_target_]
-        .apply(
-            evaluate_on_one_series
-        )
-    )
-    return result
-
-
 class OnTheFlySelector(BaseEstimator, RegressorMixin):
     """
     This class provides functionality for adaptive short-term
@@ -80,9 +44,9 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
     values.
 
     What about terminology, simple forecaster means a forecaster that
-    has no fitting. By default, class uses moving average,
+    has no fitting. By default, the class uses moving average,
     moving median, and exponential moving average, but you can pass
-    your own simple forecaster for initialization of a new instance.
+    your own simple forecaster to initialization of a new instance.
 
     Selection is preferred over stacking, because base forecasters are
     quite similar to each other and so they have many common mistakes.
@@ -95,8 +59,8 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
       consideration their identities;
     * Uses no external features and so can be used for modelling of
       residuals of a more complicated model;
-    * Can be easily paralleled, can deal with thousands of time series
-      in one call.
+    * Can be easily paralleled or distributed, can deal with thousands
+      of time series in one call.
 
     Limitations of adaptive on-the-fly selection are as follows:
     * Not suitable for time series that are strongly influenced by
@@ -124,8 +88,6 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         step by going one step forward, default value is 1, i.e.,
         forecasters are evaluated at the last `horizon` observations
         from each series.
-    :param n_jobs:
-        number of jobs for internal paralleling, default is 1
     :param verbose:
         if it is greater than 0, a progress bar with tried candidates
         is shown, default is 0
@@ -137,14 +99,12 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
             evaluation_fn: Optional[Callable] = None,
             horizon: Optional[int] = 1,
             n_evaluational_steps: Optional[int] = 1,
-            n_jobs: Optional[int] = 1,
             verbose: Optional[int] = 0
             ):
         self.candidates = candidates
         self.evaluation_fn = evaluation_fn
         self.horizon = horizon
         self.n_evaluational_steps = n_evaluational_steps
-        self.n_jobs = n_jobs
         self.verbose = verbose
 
     def __get_candidates(self) -> List[Any]:
@@ -208,18 +168,6 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         self.best_scores_.drop('curr_score', axis=1, inplace=True)
         self.best_scores_.drop('curr_forecaster', axis=1, inplace=True)
 
-    def __add_partition_key(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Balance load between different jobs uniformly.
-        keys_df = df[self.series_keys_].drop_duplicates()
-        keys_df = keys_df \
-            .reset_index() \
-            .rename(columns={'index': 'partition_key'})
-        keys_df['partition_key'] = keys_df['partition_key'].apply(
-            lambda x: x % self.n_jobs
-        )
-        df = df.merge(keys_df, on=self.series_keys_)
-        return df
-
     def _evaluate_forecaster_on_one_series(
             self,
             ser: pd.Series,
@@ -240,7 +188,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         score = self.evaluation_fn_(actual_values, predictions)
         return score
 
-    def _evaluate_forecaster_on_one_partition(
+    def _evaluate_forecaster_on_whole_dataframe(
             self,
             df: pd.DataFrame,
             forecaster: Any
@@ -272,26 +220,20 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         self.series_keys_ = self.scoring_keys_ + detailed_keys
 
         self.__create_table_for_results(df)
-        df = self.__add_partition_key(df)
 
         candidates = self.__get_candidates()
         candidates = tqdm(candidates) if self.verbose > 0 else candidates
         for candidate in candidates:
             candidate.fit(None)  # TODO: Fit it to a random series from `df`.
-            scores_list = Parallel(n_jobs=self.n_jobs)(
-                delayed(evaluate_forecaster_on_one_partition)
-                (self, group, candidate)
-                for _, group in df.groupby('partition_key', as_index=False)
+            scores = self._evaluate_forecaster_on_whole_dataframe(
+                df, candidate
             )
-            scores = pd.concat(scores_list)
             # Average scores if forecasters are selected for sets of series.
             if detailed_keys:
                 scores = scores.groupby(
                     level=list(range(len(self.scoring_keys_)))
                 ).mean()
             self.__update_table_with_results(candidate, scores)
-
-        df.drop('partition_key', axis=1, inplace=True)
         return self
 
     def fit(
@@ -332,3 +274,30 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         self.scoring_keys_ = scoring_keys or series_keys
         self._fit(df)
         return self
+
+    def add_partition_key(
+            self,
+            df: pd.DataFrame,
+            n_jobs: int
+            ) -> pd.DataFrame:
+        """
+        Add to a `df` new column that helps to balance load between
+        different processes uniformly.
+
+        :param df:
+            data to be transformed
+        :param n_jobs:
+            number of processes that will be used for parallel
+            execution
+        :return:
+            DataFrame with a new column named 'partition_key'
+        """
+        keys_df = df[self.series_keys_].drop_duplicates()
+        keys_df = keys_df \
+            .reset_index() \
+            .rename(columns={'index': 'partition_key'})
+        keys_df['partition_key'] = keys_df['partition_key'].apply(
+            lambda x: x % n_jobs
+        )
+        df = df.merge(keys_df, on=self.series_keys_)
+        return df
