@@ -154,7 +154,7 @@ class TestExponentialMovingAverageForecaster(unittest.TestCase):
         """
         ser = pd.Series([1, 2, 6], dtype=np.float32)
         eaf = ExponentialMovingAverageForecaster(
-            {'alpha': 0.5, 'n_steps_to_use': 2}
+            {'alpha': 0.5}, n_steps_to_use=2
         )
         eaf.fit(ser)
         result = eaf.predict(ser)

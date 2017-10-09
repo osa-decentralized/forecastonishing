@@ -54,10 +54,13 @@ class BaseSimpleForecaster(BaseEstimator, RegressorMixin):
                 self.rolling_kwargs_['window'] = 3
         if hasattr(self, 'ewm_kwargs'):
             self.ewm_kwargs_ = self.ewm_kwargs or dict()
-            if self.ewm_kwargs_.get('n_steps_to_use', None) is None:
+        if hasattr(self, 'n_steps_to_use'):
+            if self.n_steps_to_use is None:
                 if ser is None:
                     raise ValueError('Fitting EMAF to no series')
-                self.ewm_kwargs_['n_steps_to_use'] = len(ser)
+                self.n_steps_to_use_ = len(ser)
+            else:
+                self.n_steps_to_use_ = self.n_steps_to_use
         return self
 
     def predict(
@@ -125,20 +128,23 @@ class ExponentialMovingAverageForecaster(BaseSimpleForecaster):
     Maker of forecasts with exponential moving average.
 
     :param ewm_kwargs:
-        parameters of exponential window and one additional
-        parameter with key 'n_steps_to_use' that specifies
-        the length of current tail of a series to be used
-        for predicting, its default value is length of a
-        series to which an instance is fitted
+        parameters of exponential window
+    :param n_steps_to_use:
+        length of current tail of a series to be used for predicting,
+        its default value is length of a series to which an instance
+        is fitted
     """
 
-    def __init__(self, ewm_kwargs: Optional[Dict] = None):
+    def __init__(
+            self,
+            ewm_kwargs: Optional[Dict] = None,
+            n_steps_to_use: Optional[int] = None
+            ):
         self.ewm_kwargs = ewm_kwargs
+        self.n_steps_to_use = n_steps_to_use
         super().__init__(
             lambda x: x
-            .tail(self.ewm_kwargs_['n_steps_to_use'])
-            .ewm(**{k: v
-                    for k, v in self.ewm_kwargs_.items()
-                    if k != 'n_steps_to_use'})
+            .tail(self.n_steps_to_use_)
+            .ewm(**{k: v for k, v in self.ewm_kwargs_.items()})
             .mean()
         )
