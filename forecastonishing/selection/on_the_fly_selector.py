@@ -272,7 +272,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
             # Average scores if forecasters are selected for sets of series.
             if detailed_keys:
                 scores = scores.groupby(
-                    level=range(len(self.scoring_keys_))
+                    level=list(range(len(self.scoring_keys_)))
                 ).mean()
             self.__update_table_with_results(candidate, scores)
 
@@ -300,7 +300,8 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
             selected per a group, not per an individual time series,
             this can be used if you want to reduce overfitting and you
             know which series exhibit similar behavior,
-            default value is no grouping
+            all elements of this list must be in `series_keys` too,
+            default value corresponds to no grouping
         :return:
             fitted instance
         """
