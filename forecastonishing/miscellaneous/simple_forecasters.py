@@ -56,7 +56,7 @@ class BaseSimpleForecaster(BaseEstimator, RegressorMixin):
             self.ewm_kwargs_ = self.ewm_kwargs or dict()
             if self.ewm_kwargs_.get('n_steps_to_use', None) is None:
                 if ser is None:
-                    raise(ValueError('Fitting EMAF to no series'))
+                    raise ValueError('Fitting EMAF to no series')
                 self.ewm_kwargs_['n_steps_to_use'] = len(ser)
         return self
 
