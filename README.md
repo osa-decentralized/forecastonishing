@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.org/Nikolay-Lysenko/forecastonishing.svg?branch=master)](https://travis-ci.org/Nikolay-Lysenko/forecastonishing)
 [![codecov](https://codecov.io/gh/Nikolay-Lysenko/forecastonishing/branch/master/graph/badge.svg)](https://codecov.io/gh/Nikolay-Lysenko/forecastonishing)
+[![Code Climate](https://codeclimate.com/github/Nikolay-Lysenko/forecastonishing/badges/gpa.svg)](https://codeclimate.com/github/Nikolay-Lysenko/forecastonishing)
 
 # forecastonishing
 
