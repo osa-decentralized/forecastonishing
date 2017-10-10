@@ -92,16 +92,18 @@ class MovingAverageForecaster(BaseSimpleForecaster):
     Maker of forecasts with moving average.
 
     :param rolling_kwargs:
-        parameters of rolling (moving) window
+        parameters of rolling (moving) window as in
+        `pandas.Series.rolling`
     """
 
     def __init__(self, rolling_kwargs: Optional[Dict] = None):
         self.rolling_kwargs = rolling_kwargs
         super().__init__(
-            lambda x: x
-            .tail(self.rolling_kwargs_['window'])
-            .rolling(**self.rolling_kwargs_)
-            .mean()
+            lambda x:
+                x
+                .tail(self.rolling_kwargs_['window'])
+                .rolling(**self.rolling_kwargs_)
+                .mean()
         )
 
 
@@ -110,16 +112,18 @@ class MovingMedianForecaster(BaseSimpleForecaster):
     Maker of forecasts with moving median.
 
     :param rolling_kwargs:
-        parameters of rolling (moving) window
+        parameters of rolling (moving) window as in
+        `pandas.Series.rolling`
     """
 
     def __init__(self, rolling_kwargs: Optional[Dict] = None):
         self.rolling_kwargs = rolling_kwargs
         super().__init__(
-            lambda x: x
-            .tail(self.rolling_kwargs_['window'])
-            .rolling(**self.rolling_kwargs_)
-            .median()
+            lambda x:
+                x
+                .tail(self.rolling_kwargs_['window'])
+                .rolling(**self.rolling_kwargs_)
+                .median()
         )
 
 
@@ -128,7 +132,8 @@ class ExponentialMovingAverageForecaster(BaseSimpleForecaster):
     Maker of forecasts with exponential moving average.
 
     :param ewm_kwargs:
-        parameters of exponential window
+        parameters of exponential window as in
+        `pandas.Series.ewm`
     :param n_steps_to_use:
         length of current tail of a series to be used for predicting,
         its default value is length of a series to which an instance
@@ -143,8 +148,9 @@ class ExponentialMovingAverageForecaster(BaseSimpleForecaster):
         self.ewm_kwargs = ewm_kwargs
         self.n_steps_to_use = n_steps_to_use
         super().__init__(
-            lambda x: x
-            .tail(self.n_steps_to_use_)
-            .ewm(**{k: v for k, v in self.ewm_kwargs_.items()})
-            .mean()
+            lambda x:
+                x
+                .tail(self.n_steps_to_use_)
+                .ewm(**{k: v for k, v in self.ewm_kwargs_.items()})
+                .mean()
         )

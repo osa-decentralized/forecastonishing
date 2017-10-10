@@ -68,7 +68,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
       external factors;
     * Not suitable for non-stationary time series (e.g., time series
       with trend or seasonality) until they are not made stationary;
-    * Long-term forecasts made with it converges to constants.
+    * Long-term forecasts made with it converge to constants.
 
     :param candidates:
         forecasters to select from, mapping from instances of
@@ -96,11 +96,11 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
 
     def __init__(
             self,
-            candidates: Optional[Dict[Any, List[Any]]] = None,
+            candidates: Optional[Dict[Any, List[Dict[Any]]]] = None,
             evaluation_fn: Optional[Callable] = None,
-            horizon: Optional[int] = 1,
-            n_evaluational_steps: Optional[int] = 1,
-            verbose: Optional[int] = 0
+            horizon: int = 1,
+            n_evaluational_steps: int = 1,
+            verbose: int = 0
             ):
         self.candidates = candidates
         self.evaluation_fn = evaluation_fn
