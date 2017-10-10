@@ -291,13 +291,6 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         matched_df = df \
             .set_index(self.scoring_keys_) \
             .merge(self.best_scores_, left_index=True, right_index=True)
-        # TODO: Figure out why below block does not work.
-        # result = matched_df \
-        #     .groupby(self.series_keys_)[[self.name_of_target_,
-        #                                  'forecaster']] \
-        #     .apply(lambda x: x['forecaster'].iloc[0].predict(
-        #         x[self.name_of_target_])) \
-        #     .drop('forecaster', axis=1)
         results = []
         for name, group in matched_df.groupby(self.series_keys_):
             forecaster = group['forecaster'].iloc[0]
