@@ -96,7 +96,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
 
     def __init__(
             self,
-            candidates: Optional[Dict[Any, List[Dict[Any]]]] = None,
+            candidates: Optional[Dict[Any, List[Dict[Any, Any]]]] = None,
             evaluation_fn: Optional[Callable] = None,
             horizon: int = 1,
             n_evaluational_steps: int = 1,
