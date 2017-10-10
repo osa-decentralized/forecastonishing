@@ -1,0 +1,40 @@
+language: python
+
+python:
+  - "3.5"
+  - "3.6"
+
+install:
+  - sudo apt-get update
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
+  - conda create -q -n forecastonishing_ci --file package-list.txt python=$TRAVIS_PYTHON_VERSION
+  - source activate forecastonishing_ci
+  - pip install .
+  - pip install codecov
+  - export PYTHONPATH="."  # No data is collected by `coverage` without this.
+
+branches:
+  only:
+  - master
+  - develop
+
+script:
+  - COVERAGE_FILE=.coverage_otf coverage run tests/on_the_fly_selector_tests.py
+  - COVERAGE_FILE=.coverage_sf coverage run tests/simple_forecasters_tests.py
+  - coverage combine .coverage_otf .coverage_sf
+
+after_success:
+  - codecov
+
+notifications:
+  email:
+    recipients:
+      - nikolay.lysenko.1992@gmail.com
+    on_success: never
+    on_failure: always
