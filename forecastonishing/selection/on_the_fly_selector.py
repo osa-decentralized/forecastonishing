@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 from sklearn.base import BaseEstimator, RegressorMixin, clone
+from sklearn.utils.validation import check_is_fitted
 from sklearn.metrics import mean_squared_error
 
 from forecastonishing.miscellaneous.simple_forecasters import (
@@ -274,6 +275,43 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         self.scoring_keys_ = scoring_keys or series_keys
         self._fit(df)
         return self
+
+    def predict(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Predict next values of series from `df`.
+
+        :param df:
+            DataFrame in long format with (many) time series
+        :return:
+            DataFrame in long format with predictions
+        """
+        check_is_fitted(self, ['best_scores_', 'name_of_target_',
+                               'scoring_keys_', 'series_keys_',
+                               'evaluation_fn_'])
+        matched_df = df \
+            .set_index(self.scoring_keys_) \
+            .merge(self.best_scores_, left_index=True, right_index=True)
+        # TODO: Figure out why below block does not work.
+        # result = matched_df \
+        #     .groupby(self.series_keys_)[[self.name_of_target_,
+        #                                  'forecaster']] \
+        #     .apply(lambda x: x['forecaster'].iloc[0].predict(
+        #         x[self.name_of_target_])) \
+        #     .drop('forecaster', axis=1)
+        results = []
+        for name, group in matched_df.groupby(self.series_keys_):
+            forecaster = group['forecaster'].iloc[0]
+            predictions = forecaster.predict(
+                group[self.name_of_target_],
+                horizon=self.horizon
+            )
+            curr_result = group \
+                .reset_index() \
+                .iloc[:self.horizon, :][self.series_keys_]
+            curr_result['prediction'] = predictions
+            results.append(curr_result)
+        result = pd.concat(results)
+        return result
 
 
 def add_partition_key(

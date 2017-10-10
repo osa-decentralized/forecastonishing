@@ -10,7 +10,10 @@ import unittest
 
 import pandas as pd
 
-from forecastonishing.selection.on_the_fly_selector import OnTheFlySelector
+from forecastonishing.selection.on_the_fly_selector import (
+    OnTheFlySelector,
+    add_partition_key
+)
 from forecastonishing.miscellaneous.simple_forecasters import (
     MovingAverageForecaster,
     MovingMedianForecaster,
@@ -291,12 +294,84 @@ class TestOnTheFlySelector(unittest.TestCase):
 
     # TODO: Test `fit` with both `horizon` and `n_evaluational_steps`.
 
+    def test_predict(self) -> type(None):
+        """
+        Test `predict` method.
+
+        :return:
+            None
+        """
+        selector = OnTheFlySelector(horizon=2)
+        selector.best_scores_ = pd.DataFrame(
+            [[-1, MovingAverageForecaster({'window': 2}).fit(None)],
+             [-2, MovingMedianForecaster({'window': 4}).fit(None)]],
+            columns=['score', 'forecaster'],
+            index=[1, 2]
+        )
+        selector.best_scores_.index.name = 'key'
+        selector.name_of_target_ = 'target'
+        selector.scoring_keys_ = ['key']
+        selector.series_keys_ = ['key']
+        selector.evaluation_fn_ = None
+
+        df = pd.DataFrame(
+            [[1, 2],
+             [1, 3],
+             [1, 6],
+             [1, 5],
+             [2, 3],
+             [2, 4],
+             [2, 4.5],
+             [2, 1]],
+            columns=['key', 'target']
+        )
+        result = selector.predict(df)
+
+        true_answer = pd.DataFrame(
+            [[1, 5.5],
+             [1, 5.25],
+             [2, 3.5],
+             [2, 3.75]],
+            columns=['key', 'prediction'],
+            index=[0, 1, 0, 1]
+        )
+        self.assertTrue(result.equals(true_answer))
+
+
+class TestParallelingFunctions(unittest.TestCase):
+    """
+    Tests of functions from the file named `on_the_fly_selector.py`.
+    """
+
+    def test_add_partition_key(self) -> type(None):
+        """
+        Test `add_partition_key` function.
+
+        :return:
+            None
+        """
+        df = pd.DataFrame(
+            [[1, 2],
+             [1, 3],
+             [2, 6],
+             [2, 5],
+             [3, 3],
+             [3, 4],
+             [4, 4.5],
+             [4, 1]],
+            columns=['key', 'target']
+        )
+        result = add_partition_key(df, ['key'], n_jobs=3)
+        self.assertTrue(result.groupby('partition_key').apply(len).max() == 4)
+        self.assertTrue(result.groupby('partition_key').apply(len).min() == 2)
+
 
 def main():
     test_loader = unittest.TestLoader()
     suites_list = []
     testers = [
-        TestOnTheFlySelector()
+        TestOnTheFlySelector(),
+        TestParallelingFunctions()
     ]
     for tester in testers:
         suite = test_loader.loadTestsFromModule(tester)
