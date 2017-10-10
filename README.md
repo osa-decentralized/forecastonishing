@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Nikolay-Lysenko/forecastonishing.svg?branch=master)](https://travis-ci.org/Nikolay-Lysenko/forecastonishing)
+
 # forecastonishing
 
 ## What is it?
