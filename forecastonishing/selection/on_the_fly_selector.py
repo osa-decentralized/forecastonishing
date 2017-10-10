@@ -162,9 +162,10 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
             lambda x: max(x['score'], x['curr_score']), axis=1
         )
         self.best_scores_['forecaster'] = self.best_scores_.apply(
-            lambda x: x['curr_forecaster']
-                      if x['curr_score'] >= x['score']
-                      else x['forecaster'],
+            lambda x:
+                x['curr_forecaster']
+                if x['curr_score'] >= x['score']
+                else x['forecaster'],
             axis=1)
         self.best_scores_.drop('curr_score', axis=1, inplace=True)
         self.best_scores_.drop('curr_forecaster', axis=1, inplace=True)
@@ -263,7 +264,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         :return:
             fitted instance
         """
-        # Trailing underscore means that this attribute is due to fitting.
+        # Trailing underscore means that an attribute is due to fitting.
         # Here, `sklearn` style contradicts to hints of some linters.
         self.evaluation_fn_ = (
             self.evaluation_fn
