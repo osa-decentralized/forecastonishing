@@ -2,7 +2,6 @@
 # $ conda create --name <env> --file <this file>
 # platform: linux-64
 certifi=2016.2.28=py36_0
-joblib=0.11=py36_0
 libgfortran=3.0.0=1
 mkl=2017.0.3=0
 numpy=1.13.1=py36_0
@@ -23,3 +22,9 @@ tqdm=4.15.0=py36_0
 wheel=0.29.0=py36_0
 xz=5.2.3=0
 zlib=1.2.11=0
+# Now, these packages are available only via conda-forge channel.
+# dill=0.2.6=py36_0
+# multiprocess=0.70.5=py36_0
+# pathos=0.2.1=py36_1
+# pox=0.2.3=py36_0
+# ppft=1.6.4.7.1=py36_0
