@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/Nikolay-Lysenko/forecastonishing.svg?branch=master)](https://travis-ci.org/Nikolay-Lysenko/forecastonishing)
-[![codecov](https://codecov.io/gh/Nikolay-Lysenko/forecastonishing/branch/master/graph/badge.svg)](https://codecov.io/gh/Nikolay-Lysenko/forecastonishing)
+[![Build Status](https://travis-ci.org/osahp/forecastonishing.svg?branch=master)](https://travis-ci.org/osahp/forecastonishing)
+[![codecov](https://codecov.io/gh/osahp/forecastonishing/branch/master/graph/badge.svg)](https://codecov.io/gh/osahp/forecastonishing)
 [![Maintainability](https://api.codeclimate.com/v1/badges/0ad527e39baba110579e/maintainability)](https://codeclimate.com/github/Nikolay-Lysenko/forecastonishing/maintainability)
 
 # forecastonishing
