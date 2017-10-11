@@ -1,12 +1,13 @@
 """
 Inside this module, there is a class that runs adaptive selection
 of short-term forecasting models. Some functions that helps to
-run adaptive selection in parallel can be found here as well.
+run adaptive selection in parallel can be found in the file named
+`./paralleling.py`.
 
 Time series forecasting has a property that all observations are
 ordered. Depending on position, behavior of series can vary and so
-one method can yield better results for some moments while
-another method can outperform it for some other moments. This is
+one method can yield better results at some moments while
+another method can outperform it at some other moments. This is
 the reason why adaptive selection is useful for many series.
 
 @author: Nikolay Lysenko
@@ -16,7 +17,6 @@ the reason why adaptive selection is useful for many series.
 from typing import List, Dict, Callable, Any, Optional
 from functools import partial
 
-from joblib import Parallel, delayed  # TODO: Use it in paralleling functions.
 from tqdm import tqdm
 
 import numpy as np
@@ -36,7 +36,7 @@ from forecastonishing.miscellaneous.simple_forecasters import (
 class OnTheFlySelector(BaseEstimator, RegressorMixin):
     """
     This class provides functionality for adaptive short-term
-    forecasting.
+    forecasting based on selection from a pool of models.
 
     The class is designed for a case of many time series and many
     simple forecasters - if so, it is too expensive to store all
@@ -83,12 +83,13 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
     :param horizon:
         number of steps ahead to be forecasted at each iteration,
         default is 1
-    :param n_evaluational_steps:
+    :param n_evaluational_rounds:
         number of iterations at each of which forecasters make
-        predictions, the next step is obtained from the preceding
-        step by going one step forward, default value is 1, i.e.,
-        forecasters are evaluated at the last `horizon` observations
-        from each series.
+        predictions; structure of rounds is determined as follows:
+        the next round is obtained from the preceding round by going
+        one step forward and the last round ends at ends of time
+        series; default value is 1, i.e., forecasters are evaluated
+        at the last `horizon` observations from each series.
     :param verbose:
         if it is greater than 0, a progress bar with tried candidates
         is shown, default is 0
@@ -96,16 +97,16 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
 
     def __init__(
             self,
-            candidates: Optional[Dict[Any, List[Dict[Any, Any]]]] = None,
+            candidates: Optional[Dict[Any, List[Dict[str, Any]]]] = None,
             evaluation_fn: Optional[Callable] = None,
             horizon: int = 1,
-            n_evaluational_steps: int = 1,
+            n_evaluational_rounds: int = 1,
             verbose: int = 0
             ):
         self.candidates = candidates
         self.evaluation_fn = evaluation_fn
         self.horizon = horizon
-        self.n_evaluational_steps = n_evaluational_steps
+        self.n_evaluational_rounds = n_evaluational_rounds
         self.verbose = verbose
 
     def __get_candidates(self) -> List[Any]:
@@ -176,10 +177,10 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
             forecaster: Any
             ) -> float:
         # Evaluate performance of `forecaster` on `ser`.
-        frontier = len(ser) - self.horizon - self.n_evaluational_steps + 1
+        frontier = len(ser) - self.horizon - self.n_evaluational_rounds + 1
         actual_values = np.array([])
         predictions = np.array([])
-        for i in range(self.n_evaluational_steps):
+        for i in range(self.n_evaluational_rounds):
             curr_actual = ser[(frontier + i):(frontier + i + self.horizon)]
             actual_values = np.append(actual_values, curr_actual.values)
             curr_predictions = forecaster.predict(
@@ -291,7 +292,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
                                'evaluation_fn_'])
         matched_df = df \
             .set_index(self.scoring_keys_) \
-            .merge(self.best_scores_, left_index=True, right_index=True)
+            .join(self.best_scores_)
         results = []
         for name, group in matched_df.groupby(self.series_keys_):
             forecaster = group['forecaster'].iloc[0]
@@ -306,33 +307,3 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
             results.append(curr_result)
         result = pd.concat(results)
         return result
-
-
-def add_partition_key(
-        df: pd.DataFrame,
-        series_keys: List[str],
-        n_jobs: int
-        ) -> pd.DataFrame:
-    """
-    Add to `df` a new column that helps to balance load between
-    different processes uniformly.
-
-    :param df:
-        data to be transformed in long format
-    :param series_keys:
-        columns that are identifiers of unique time series
-    :param n_jobs:
-        number of processes that will be used for parallel
-        execution
-    :return:
-        DataFrame with a new column named 'partition_key'
-    """
-    keys_df = df[series_keys].drop_duplicates()
-    keys_df = keys_df \
-        .reset_index() \
-        .rename(columns={'index': 'partition_key'})
-    keys_df['partition_key'] = keys_df['partition_key'].apply(
-        lambda x: x % n_jobs
-    )
-    df = df.merge(keys_df, on=series_keys)
-    return df

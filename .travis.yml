@@ -14,6 +14,7 @@ install:
   - conda update -q conda
   - conda info -a
   - conda create -q -n forecastonishing_ci --file package-list.txt python=$TRAVIS_PYTHON_VERSION
+  - conda install -c conda-forge pathos
   - source activate forecastonishing_ci
   - pip install .
   - pip install codecov
@@ -25,7 +26,7 @@ branches:
   - develop
 
 script:
-  - COVERAGE_FILE=.coverage_otf coverage run tests/on_the_fly_selector_tests.py
+  - COVERAGE_FILE=.coverage_otf coverage run tests/on_the_fly_selection_tests.py
   - COVERAGE_FILE=.coverage_sf coverage run tests/simple_forecasters_tests.py
   - coverage combine .coverage_otf .coverage_sf
 
