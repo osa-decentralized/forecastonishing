@@ -19,7 +19,7 @@ setup(
     version='0.1a',
     description='A set of tools for forecasting',
     long_description=long_description,
-    url='https://github.com/Nikolay-Lysenko/forecastonishing',
+    url='https://github.com/osahp/forecastonishing',
     author='Nikolay Lysenko',
     author_email='nikolay-lysenco@yandex.ru',
     license='MIT',
