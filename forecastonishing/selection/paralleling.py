@@ -52,6 +52,21 @@ def fit_selector_to_one_partition(
         fit_kwargs: Dict[str, Any]
         ) -> 'type(selector_instance)':
     """
+    Create specified selector and fit it to passed data.
+    This is an auxiliary function for `fit_selector_in_parallel`
+    function and it is defined at module level only for the sake of
+    convenience of testing.
+
+    :param df:
+        DataFrame in long format that contains time series
+    :param selector_instance:
+        instance that specifies class of resulting selector
+    :param selector_kwargs:
+        arguments of resulting selector's initialization
+    :param fit_kwargs:
+        arguments that are passed to `fit` method of selector
+    :return:
+        created and fitted instance
     """
     selector = clone(selector_instance).set_params(**selector_kwargs)
     selector.fit(df, **fit_kwargs)
@@ -68,6 +83,27 @@ def fit_selector_in_parallel(
         n_processes: int = 1
         ) -> 'type(selector_instance)':
     """
+    Create a new selector of specified parameters and fit it with
+    paralleling based on enumeration of unique time series.
+
+    :param selector_instance:
+        instance that specifies class of resulting selector
+    :param selector_kwargs:
+        arguments of resulting selector's initialization
+    :param df:
+        DataFrame in long format that contains time series
+    :param name_of_target:
+        name of target column
+    :param series_keys:
+        columns that are identifiers of unique time series
+    :param scoring_keys:
+        identifiers of groups such that best forecasters are
+        selected per a group, not per an individual time series,
+        see more in documentation on `fit` method of selector
+    :param n_processes:
+        number of parallel processes, default is 1
+    :return:
+        new fitted instance of selector
     """
     fit_kwargs = {
         'name_of_target': name_of_target,
