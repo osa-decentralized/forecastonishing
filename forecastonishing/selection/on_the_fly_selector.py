@@ -145,10 +145,10 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         for _, ser in df.groupby(self.series_keys_)[self.name_of_target_]:
             if len(ser.index) != expected_length:
                 warn(
-                    RuntimeWarning,
                     'Length of series varies, are you sure that all '
                     'time steps are present for all series? You can use '
-                    '`np.nan` for missing values and keep these observations.'
+                    '`np.nan` for missing values and keep these observations.',
+                    RuntimeWarning
                 )
 
     def __create_table_for_results(

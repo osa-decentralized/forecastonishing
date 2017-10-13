@@ -8,6 +8,7 @@ and `../forecastonishing/selection/paralleling.py`.
 
 
 import unittest
+import warnings
 
 import pandas as pd
 
@@ -359,6 +360,35 @@ class TestOnTheFlySelector(unittest.TestCase):
             selector.best_scores_['score'][2],
             -6.073784722222222
         )
+
+    def test_that_fit_warns_on_series_of_unequal_length(self) -> type(None):
+        """
+        Test that fit to a series of different length results in
+        `RuntimeWarning`.
+
+        :return:
+            None
+        """
+        selector = OnTheFlySelector()
+        with warnings.catch_warnings(record=True) as caught_warnings:
+            df = pd.DataFrame(
+                [[1, 2],
+                 [1, 3],
+                 [1, 6],
+                 [2, 8],
+                 [2, 7],
+                 [2, 5],
+                 [2, 4]],
+                columns=['key', 'target']
+            )
+
+            selector.fit(df, 'target', ['key'])
+
+            self.assertTrue(len(caught_warnings) == 1)
+            self.assertTrue(issubclass(
+                caught_warnings[-1].category,
+                RuntimeWarning)
+            )
 
     def test_predict(self) -> type(None):
         """
