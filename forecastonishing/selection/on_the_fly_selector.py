@@ -1,6 +1,6 @@
 """
 Inside this module, there is a class that runs adaptive selection
-of short-term forecasting models. Some functions that helps to
+of short-term forecasting models. Some functions that help to
 run adaptive selection in parallel can be found in the file named
 `./paralleling.py`.
 
@@ -15,6 +15,7 @@ the reason why adaptive selection is useful for many series.
 
 
 from typing import List, Dict, Callable, Any, Optional
+from warnings import warn
 from functools import partial
 
 from tqdm import tqdm
@@ -135,6 +136,21 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         forecasters = [item for sublist in nested for item in sublist]
         return forecasters
 
+    def __validate_data(
+            self,
+            df: pd.DataFrame,
+            expected_length: int
+            ) -> type(None):
+        # Warn if some series from `df` have lengths other than expected.
+        for _, ser in df.groupby(self.series_keys_)[self.name_of_target_]:
+            if len(ser.index) != expected_length:
+                warn(
+                    'Length of series varies, are you sure that all '
+                    'time steps are present for all series? You can use '
+                    '`np.nan` for missing values and keep these observations.',
+                    RuntimeWarning
+                )
+
     def __create_table_for_results(
             self,
             df: pd.DataFrame
@@ -222,12 +238,17 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         # Rearrange `series_keys` in order to have `scoring_keys` first.
         self.series_keys_ = self.scoring_keys_ + detailed_keys
 
+        arbitrary_ser = df \
+            .groupby(self.series_keys_)[self.name_of_target_] \
+            .__iter__() \
+            .__next__()[1]
+        self.__validate_data(df, len(arbitrary_ser.index))
         self.__create_table_for_results(df)
 
         candidates = self.__get_candidates()
         candidates = tqdm(candidates) if self.verbose > 0 else candidates
         for candidate in candidates:
-            candidate.fit(None)  # TODO: Fit it to a random series from `df`.
+            candidate.fit(arbitrary_ser)
             scores = self._evaluate_forecaster_on_whole_dataframe(
                 df, candidate
             )
