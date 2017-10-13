@@ -14,7 +14,7 @@ import pandas as pd
 from forecastonishing.selection.on_the_fly_selector import OnTheFlySelector
 from forecastonishing.selection.paralleling import (
     add_partition_key,
-    fit_selector_to_one_partition,
+    fit_selector_to_dataframe,
     fit_selector_in_parallel
 )
 
@@ -296,7 +296,69 @@ class TestOnTheFlySelector(unittest.TestCase):
         )
         self.assertEquals(selector.best_scores_['score'][2], -50 / 3)
 
-    # TODO: Test `fit` with both `horizon` and `n_evaluational_rounds`.
+    def test_fit_with_horizon_and_more_rounds(self) -> type(None):
+        """
+        Test `fit` method with horizon and several evaluational
+        rounds.
+
+        :return:
+            None
+        """
+        candidates = {
+            MovingAverageForecaster():
+                [{'rolling_kwargs': {'window': w, 'min_periods': 1}}
+                 for w in range(1, 3)],
+            MovingMedianForecaster():
+                [{'rolling_kwargs': {'window': w, 'min_periods': 1}}
+                 for w in range(3, 4)]
+        }
+        selector = OnTheFlySelector(
+            candidates,
+            horizon=3,
+            n_evaluational_rounds=3
+        )
+
+        df = pd.DataFrame(
+            [[1, 2],
+             [1, 3],
+             [1, 6],
+             [1, 5],
+             [1, 4],
+             [1, 1],
+             [1, 3],
+             [1, 2],
+             [2, 3],
+             [2, 4],
+             [2, 4.5],
+             [2, 4],
+             [2, 8],
+             [2, 7],
+             [2, 5],
+             [2, 4]],
+            columns=['key', 'target']
+        )
+
+        selector.fit(df, 'target', ['key'])
+
+        self.assertTrue(isinstance(
+            selector.best_scores_['forecaster'][1], MovingMedianForecaster
+        ))
+        self.assertEquals(
+            selector.best_scores_['forecaster'][1].get_params(),
+            {'rolling_kwargs': {'window': 3, 'min_periods': 1}}
+        )
+        self.assertEquals(selector.best_scores_['score'][1], -59 / 9)
+        self.assertTrue(isinstance(
+            selector.best_scores_['forecaster'][2], MovingAverageForecaster
+        ))
+        self.assertEquals(
+            selector.best_scores_['forecaster'][2].get_params(),
+            {'rolling_kwargs': {'window': 2, 'min_periods': 1}}
+        )
+        self.assertAlmostEqual(
+            selector.best_scores_['score'][2],
+            -6.073784722222222
+        )
 
     def test_predict(self) -> type(None):
         """
@@ -369,9 +431,9 @@ class TestParallelingFunctions(unittest.TestCase):
         self.assertTrue(result.groupby('partition_key').apply(len).max() == 4)
         self.assertTrue(result.groupby('partition_key').apply(len).min() == 2)
 
-    def test_fit_selector_to_one_partition(self) -> type(None):
+    def test_fit_selector_to_dataframe(self) -> type(None):
         """
-        Test `fit_selector_to_one_partition` function.
+        Test `fit_selector_to_dataframe` function.
 
         :return:
             None
@@ -384,8 +446,7 @@ class TestParallelingFunctions(unittest.TestCase):
                 [{'rolling_kwargs': {'window': w, 'min_periods': 1}}
                  for w in range(3, 4)]
         }
-        selector_instance = OnTheFlySelector()
-        selector_kwargs = {'candidates': candidates}
+        selector_instance = OnTheFlySelector(candidates)
 
         df = pd.DataFrame(
             [[1, 2],
@@ -399,8 +460,9 @@ class TestParallelingFunctions(unittest.TestCase):
             columns=['key', 'target']
         )
 
-        selector = fit_selector_to_one_partition(
-            df, selector_instance, selector_kwargs,
+        selector = fit_selector_to_dataframe(
+            df,
+            selector_instance,
             {'name_of_target': 'target', 'series_keys': ['key']}
         )
 
@@ -436,8 +498,7 @@ class TestParallelingFunctions(unittest.TestCase):
                 [{'rolling_kwargs': {'window': w, 'min_periods': 1}}
                  for w in range(3, 4)]
         }
-        selector_instance = OnTheFlySelector()
-        selector_kwargs = {'candidates': candidates}
+        selector_instance = OnTheFlySelector(candidates)
 
         df = pd.DataFrame(
             [[1, 2],
@@ -452,8 +513,7 @@ class TestParallelingFunctions(unittest.TestCase):
         )
 
         selector = fit_selector_in_parallel(
-            selector_instance, selector_kwargs,
-            df, 'target', ['key']
+            selector_instance, df, 'target', ['key']
         )
 
         self.assertTrue(isinstance(

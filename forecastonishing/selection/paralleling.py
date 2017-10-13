@@ -45,10 +45,9 @@ def add_partition_key(
     return df
 
 
-def fit_selector_to_one_partition(
+def fit_selector_to_dataframe(
         df: pd.DataFrame,
         selector_instance: Any,
-        selector_kwargs: Dict[str, Any],
         fit_kwargs: Dict[str, Any]
         ) -> 'type(selector_instance)':
     """
@@ -61,21 +60,18 @@ def fit_selector_to_one_partition(
         DataFrame in long format that contains time series
     :param selector_instance:
         instance that specifies class of resulting selector
-    :param selector_kwargs:
-        arguments of resulting selector's initialization
     :param fit_kwargs:
         arguments that are passed to `fit` method of selector
     :return:
         created and fitted instance
     """
-    selector = clone(selector_instance).set_params(**selector_kwargs)
+    selector = clone(selector_instance)
     selector.fit(df, **fit_kwargs)
     return selector
 
 
 def fit_selector_in_parallel(
         selector_instance: Any,
-        selector_kwargs: Dict[str, Any],
         df: pd.DataFrame,
         name_of_target: str,
         series_keys: List[str],
@@ -88,8 +84,7 @@ def fit_selector_in_parallel(
 
     :param selector_instance:
         instance that specifies class of resulting selector
-    :param selector_kwargs:
-        arguments of resulting selector's initialization
+        and its initial parameters
     :param df:
         DataFrame in long format that contains time series
     :param name_of_target:
@@ -113,9 +108,8 @@ def fit_selector_in_parallel(
     try:
         df = add_partition_key(df, series_keys, n_processes)
         fit_to_one_partition = partial(
-            fit_selector_to_one_partition,
+            fit_selector_to_dataframe,
             selector_instance=selector_instance,
-            selector_kwargs=selector_kwargs,
             fit_kwargs=fit_kwargs
         )
         selectors = mp.Pool(n_processes).map(
