@@ -511,7 +511,6 @@ class TestParallelingFunctions(unittest.TestCase):
         )
         self.assertEquals(selector.best_scores_['score'][2], -9)
 
-
     def test_predict_with_selector_in_parallel(self) -> type(None):
         """
         Test `predict_with_selector_in_parallel` method.
