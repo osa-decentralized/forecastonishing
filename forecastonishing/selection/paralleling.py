@@ -85,7 +85,7 @@ def fit_selector_in_parallel(
         selectors = mp.Pool(n_processes).map(
             lambda x: clone(selector_instance).fit(x, **fit_kwargs),
             [group for _, group in df.groupby('partition_key', as_index=False)]
-        )
+        )  # pragma: no cover (`coverage` has issues with multiprocessing)
         results_tables = [
             selector.best_scores_ for selector in selectors
         ]
@@ -120,7 +120,7 @@ def predict_with_selector_in_parallel(
         predictions = mp.Pool(n_processes).map(
             lambda x: selector.predict(x),
             [group for _, group in df.groupby('partition_key', as_index=False)]
-        )
+        )  # pragma: no cover (`coverage` has issues with multiprocessing)
         result = pd.concat(predictions)
         return result
     finally:
