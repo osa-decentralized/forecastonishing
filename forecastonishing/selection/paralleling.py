@@ -6,13 +6,13 @@ selection in parallel.
 """
 
 
-from functools import partial
-from typing import List, Dict, Any, Optional
+from typing import List, Any, Optional
 
 import pandas as pd
 from sklearn.base import clone
 
-import pathos.multiprocessing as mp  # It can serialize class methods.
+# It can serialize class methods and lambda functions.
+import pathos.multiprocessing as mp
 
 
 def add_partition_key(
@@ -43,31 +43,6 @@ def add_partition_key(
     )
     df = df.merge(keys_df, on=series_keys)
     return df
-
-
-def fit_selector_to_dataframe(
-        df: pd.DataFrame,
-        selector_instance: Any,
-        fit_kwargs: Dict[str, Any]
-        ) -> 'type(selector_instance)':
-    """
-    Create specified selector and fit it to passed data.
-    This is an auxiliary function for `fit_selector_in_parallel`
-    function and it is defined at module level only for the sake of
-    convenience of testing.
-
-    :param df:
-        DataFrame in long format that contains time series
-    :param selector_instance:
-        instance that specifies class of resulting selector
-    :param fit_kwargs:
-        arguments that are passed to `fit` method of selector
-    :return:
-        created and fitted instance
-    """
-    selector = clone(selector_instance)
-    selector.fit(df, **fit_kwargs)
-    return selector
 
 
 def fit_selector_in_parallel(
@@ -107,13 +82,8 @@ def fit_selector_in_parallel(
     }
     try:
         df = add_partition_key(df, series_keys, n_processes)
-        fit_to_one_partition = partial(
-            fit_selector_to_dataframe,
-            selector_instance=selector_instance,
-            fit_kwargs=fit_kwargs
-        )
         selectors = mp.Pool(n_processes).map(
-            fit_to_one_partition,
+            lambda x: clone(selector_instance).fit(x, **fit_kwargs),
             [group for _, group in df.groupby('partition_key', as_index=False)]
         )
         results_tables = [
@@ -124,5 +94,34 @@ def fit_selector_in_parallel(
         selector = selectors[0]  # An arbitrary fitted selector.
         selector.best_scores_ = best_scores
         return selector
+    finally:
+        df.drop('partition_key', axis=1, inplace=True)
+
+
+def predict_with_selector_in_parallel(
+        selector: Any,
+        df: pd.DataFrame,
+        n_processes: int = 1
+        ) -> pd.DataFrame:
+    """
+    Predict future values of series with paralleling by series keys.
+
+    :param selector:
+        instance that has been fitted before
+    :param df:
+        DataFrame in long format that contains time series
+    :param n_processes:
+        number of parallel processes, default is 1
+    :return:
+        DataFrame in long format with predictions
+    """
+    try:
+        df = add_partition_key(df, selector.series_keys_, n_processes)
+        predictions = mp.Pool(n_processes).map(
+            lambda x: selector.predict(x),
+            [group for _, group in df.groupby('partition_key', as_index=False)]
+        )
+        result = pd.concat(predictions)
+        return result
     finally:
         df.drop('partition_key', axis=1, inplace=True)
