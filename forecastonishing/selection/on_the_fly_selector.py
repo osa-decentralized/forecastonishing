@@ -39,6 +39,13 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
     This class provides functionality for adaptive short-term
     forecasting based on selection from a pool of models.
 
+    Fitting goes like this: an instance of the class applies all its
+    candidate models to each of time series from the learning sample,
+    evaluates models performances on specified number of last folds,
+    and, finally, selects winning model for each of the time series.
+    To predict future values of a time series, corresponding to it
+    winning model is used.
+
     The class is designed for a case of many time series and many
     simple forecasters - if so, it is too expensive to store all
     forecasts in any place other than operating memory and it
