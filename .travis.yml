@@ -28,7 +28,8 @@ branches:
 script:
   - COVERAGE_FILE=.coverage_otf coverage run tests/on_the_fly_selection_tests.py
   - COVERAGE_FILE=.coverage_sf coverage run tests/simple_forecasters_tests.py
-  - coverage combine .coverage_otf .coverage_sf
+  - COVERAGE_FILE=.coverage_m coverage run tests/metrics_tests.py
+  - coverage combine .coverage_otf .coverage_sf .coverage_m
 
 after_success:
   - codecov
