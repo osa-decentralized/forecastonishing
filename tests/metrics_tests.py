@@ -73,6 +73,26 @@ class TestMetrics(unittest.TestCase):
         score = overall_censored_mape(df)
         self.assertEquals(score, 30)
 
+    def test_overall_censored_mape_with_zeros(self) -> type(None):
+        """
+        Test correct work of `overall_censored_mape` function
+        with zero forecasts made for zero actual values.
+
+        :return:
+            None
+        """
+        first_df = get_example()
+        second_df = pd.DataFrame(
+            [[3, 0, 0],
+             [3, 0, 0],
+             [4, 0, 0],
+             [4, 0, 0]],
+            columns=['key', 'actual_value', 'prediction']
+        )
+        df = pd.concat([first_df, second_df])
+        score = overall_censored_mape(df)
+        self.assertEquals(score, 15)
+
     def test_averaged_censored_mape(self) -> type(None):
         """
         Test `averaged_r_censored_mape` function.

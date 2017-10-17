@@ -92,8 +92,8 @@ def overall_censored_mape(
             (df[target_column] - df[predictions_column]).abs() /
             df[target_column]
         )
-        .replace(np.inf, np.nan)
-        .fillna(censorship_level)
+        .fillna(0)  # If there are no missings, `np.nan` occurs due to 0 / 0.
+        .replace(np.inf, censorship_level)
         .apply(lambda x: min(x, censorship_level))
         .mean()
     )
