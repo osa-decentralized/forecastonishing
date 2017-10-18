@@ -9,28 +9,32 @@ easy-to-read names.
 from forecastonishing.selection import on_the_fly_selector
 
 
-class Helper():
+class Helper:
     """
     A collection of static functions.
     """
 
     @staticmethod
-    def why_adaptive_selection():
+    def why_adaptive_selection() -> type(None):
         """
         Extract from docstring and show a snippet that answers
-        the question from this function name.
+        the question "Why adaptive selection should be used?".
+
+        :return:
+            None
         """
-        print(
-            '    ' +
-            '\n    '
-                .join(on_the_fly_selector.__doc__.split('\n\n')[1].split('\n'))
+        answer = '\n    '.join(
+            on_the_fly_selector.__doc__.split('\n\n')[1].split('\n')
         )
+        print('    ' + answer)
 
     @staticmethod
-    def what_is_on_the_fly_selector():
+    def what_is_on_the_fly_selector() -> type(None):
         """
         Extract from docstring and show a snippet that answers
-        the question from this function name.
+        the question "What is `OnTheFlySelector` class?".
+
+        :return:
+            None
         """
         print(on_the_fly_selector.OnTheFlySelector.__doc__.split(':param')[0])
-
