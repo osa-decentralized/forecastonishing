@@ -49,7 +49,8 @@ def averaged_r_squared(
     :param df:
         DataFrame in long format with time series and predictions
     :param series_keys:
-        identifiers of individual time series
+        names of columns that are identifiers of individual
+        time series
     :param target_column:
         name of column with actual values
     :param predictions_column:
@@ -87,12 +88,13 @@ def overall_censored_mape(
     :return:
         overall censored from above MAPE
     """
+    clean_df = df[[target_column, predictions_column]].dropna(how='any')
     result = (
         100 * (
-            (df[target_column] - df[predictions_column]).abs() /
-            df[target_column]
+            (clean_df[target_column] - clean_df[predictions_column]).abs() /
+            clean_df[target_column]
         )
-        .fillna(0)  # If there are no missings, `np.nan` occurs due to 0 / 0.
+        .fillna(0)  # Now, `np.nan` can occur only due to `0 / 0`.
         .replace(np.inf, censorship_level)
         .apply(lambda x: min(x, censorship_level))
         .mean()
@@ -117,7 +119,8 @@ def averaged_censored_mape(
     :param df:
         DataFrame in long format with time series and predictions
     :param series_keys:
-        identifiers of individual time series
+        names of columns that are identifiers of individual
+        time series
     :param target_column:
         name of column with actual values
     :param predictions_column:

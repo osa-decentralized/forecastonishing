@@ -8,6 +8,7 @@ This module contains tests of code from the file named
 
 import unittest
 
+import numpy as np
 import pandas as pd
 
 from forecastonishing.miscellaneous.metrics import (
@@ -93,6 +94,20 @@ class TestMetrics(unittest.TestCase):
         score = overall_censored_mape(df)
         self.assertEquals(score, 15)
 
+    def test_overall_censored_mape_with_missings(self) -> type(None):
+        """
+        Test correct work of `overall_censored_mape` function
+        with some values missed.
+
+        :return:
+            None
+        """
+        df = get_example()
+        df.loc[0, 'prediction'] = None
+        df.loc[1, 'actual_value'] = np.nan
+        score = overall_censored_mape(df)
+        self.assertEquals(score, 22.5)
+
     def test_averaged_censored_mape(self) -> type(None):
         """
         Test `averaged_r_censored_mape` function.
@@ -103,6 +118,20 @@ class TestMetrics(unittest.TestCase):
         df = get_example()
         score = averaged_censored_mape(df, ['key'])
         self.assertEquals(score, 30)
+
+    def test_averaged_censored_mape_with_empty_series(self) -> type(None):
+        """
+        Test correct work of `overall_censored_mape` function
+        with DataFrame that contains an empty time series.
+
+        :return:
+            None
+        """
+        df = get_example()
+        df.loc[0, 'prediction'] = None
+        df.loc[1, 'actual_value'] = np.nan
+        score = averaged_censored_mape(df, ['key'])
+        self.assertEquals(score, 22.5)
 
 
 def main():
