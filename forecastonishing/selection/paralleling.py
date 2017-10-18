@@ -35,9 +35,11 @@ def add_partition_key(
         DataFrame with a new column named 'partition_key'
     """
     keys_df = df[series_keys].drop_duplicates()
-    keys_df = keys_df \
-        .reset_index() \
+    keys_df = (
+        keys_df
+        .reset_index()
         .rename(columns={'index': 'partition_key'})
+    )
     keys_df['partition_key'] = keys_df['partition_key'].apply(
         lambda x: x % n_partitions
     )

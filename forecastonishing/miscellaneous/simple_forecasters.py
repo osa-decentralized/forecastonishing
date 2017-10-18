@@ -57,7 +57,9 @@ class BaseSimpleForecaster(BaseEstimator, RegressorMixin):
         if hasattr(self, 'n_steps_to_use'):
             if self.n_steps_to_use is None:
                 if ser is None:
-                    raise ValueError('Fitting EMAF to no series')
+                    raise ValueError(
+                        'Fitting {} to no series'.format(type(self))
+                    )
                 self.n_steps_to_use_ = len(ser)
             else:
                 self.n_steps_to_use_ = self.n_steps_to_use

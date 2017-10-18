@@ -8,7 +8,8 @@ Time series forecasting has a property that all observations are
 ordered. Depending on position, behavior of series can vary and so
 one method can yield better results at some moments while
 another method can outperform it at some other moments. This is
-the reason why adaptive selection is useful for many series.
+the reason why adaptive selection is useful for a significant
+number of series.
 
 @author: Nikolay Lysenko
 """
@@ -46,13 +47,13 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
     To predict future values of a time series, corresponding to it
     winning model is used.
 
-    The class is designed for a case of many time series and many
-    simple forecasters - if so, it is too expensive to store all
-    forecasts in any place other than operating memory and it
-    is better to compute them on-the-fly and then store only selected
+    The class is designed for a case of plenty of time series and
+    plenty of simple forecasters - if so, it is too expensive to store
+    all forecasts in any place other than operating memory and it is
+    better to compute them on-the-fly and then store only selected
     values.
 
-    What about terminology, simple forecaster means a forecaster that
+    As for terminology, simple forecaster means a forecaster that
     has no fitting. By default, the class uses moving average,
     moving median, and exponential moving average, but you can pass
     your own simple forecaster to initialization of a new instance.
@@ -83,7 +84,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         regressors to kwargs of their initializations, default value
         results in moving averages of ten distinct windows,
         moving medians of eight distinct windows and exponential
-        moving averages of ten distinct half-lifes
+        moving averages of ten distinct half-lives
     :param evaluation_fn:
         function that is used for selection of the best forecasters,
         the bigger its value, the better is a forecaster, default is
@@ -179,9 +180,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         scores = candidate_scores.to_frame(name='curr_score')
         scores['curr_forecaster'] = tried_candidate
 
-        self.best_scores_ = self.best_scores_.merge(
-            scores, how='left', left_index=True, right_index=True
-        )
+        self.best_scores_ = self.best_scores_.join(scores, how='left')
         self.best_scores_['score'] = self.best_scores_.apply(
             lambda x: max(x['score'], x['curr_score']), axis=1
         )
@@ -278,7 +277,7 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         Figure out which forecaster should be used for each series.
 
         :param df:
-            DataFrame in long format with (many) time series
+            DataFrame in long format with (several) time series
         :param name_of_target:
             name of target column
         :param series_keys:
@@ -311,13 +310,15 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
         Predict next values of series from `df`.
 
         :param df:
-            DataFrame in long format with (many) time series
+            DataFrame in long format with (several) time series
         :return:
             DataFrame in long format with predictions
         """
-        check_is_fitted(self, ['best_scores_', 'name_of_target_',
-                               'scoring_keys_', 'series_keys_',
-                               'evaluation_fn_'])
+        check_is_fitted(
+            self,
+            ['best_scores_', 'name_of_target_', 'evaluation_fn_',
+             'scoring_keys_', 'series_keys_']
+        )
         matched_df = df \
             .set_index(self.scoring_keys_) \
             .join(self.best_scores_)
@@ -328,9 +329,11 @@ class OnTheFlySelector(BaseEstimator, RegressorMixin):
                 group[self.name_of_target_],
                 horizon=self.horizon
             )
-            curr_result = group \
-                .reset_index() \
+            curr_result = (
+                group
+                .reset_index()
                 .iloc[:self.horizon, :][self.series_keys_]
+            )
             curr_result['prediction'] = predictions
             results.append(curr_result)
         result = pd.concat(results)
