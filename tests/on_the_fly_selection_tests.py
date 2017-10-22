@@ -385,9 +385,8 @@ class TestOnTheFlySelector(unittest.TestCase):
             selector.fit(df, 'target', ['key'])
 
             self.assertTrue(len(caught_warnings) == 1)
-            self.assertTrue(issubclass(
-                caught_warnings[-1].category,
-                RuntimeWarning)
+            self.assertTrue(
+                issubclass(caught_warnings[-1].category, RuntimeWarning)
             )
 
     def test_predict(self) -> type(None):
