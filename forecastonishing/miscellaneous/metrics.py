@@ -89,12 +89,12 @@ def overall_censored_mape(
         overall censored from above MAPE
     """
     clean_df = df[[target_column, predictions_column]].dropna(how='any')
-    result = (
-        100 * (
+    result = 100 * (
+        (
             (clean_df[target_column] - clean_df[predictions_column]).abs() /
             clean_df[target_column]
         )
-        .fillna(0)  # Now, `np.nan` can occur only due to `0 / 0`.
+        .fillna(0)  # Filled here `np.nan` values occur due to `0 / 0`.
         .replace(np.inf, censorship_level)
         .apply(lambda x: min(x, censorship_level))
         .mean()
